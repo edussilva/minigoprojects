@@ -13,3 +13,4 @@ Acessa uma lista de urls em um arquivo de texto e verifica se alguma delas está
 
 `go run main.go <filename>`
 
+
