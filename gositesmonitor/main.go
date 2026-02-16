@@ -2,12 +2,16 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type SiteInfo struct {
@@ -132,6 +136,34 @@ func formatarMensagemAlerta(infos map[string]*SiteInfo) string {
 	return msg
 }
 
+func enviarAlertaTelegram(mensagem string) error {
+	// Carregar o arquivo .env
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Erro ao carregar arquivo .env")
+	}
+
+	telegramToken := os.Getenv("TELEGRAM_TOKEN")
+	telegramChatID := os.Getenv("TELEGRAM_CHAT_ID")
+
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", telegramToken)
+
+	body := map[string]interface{}{
+		"chat_id": telegramChatID,
+		"text":    mensagem,
+	}
+
+	jsonBody, _ := json.Marshal(body)
+
+	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
 func main() {
 	sites := lerSitesDoArquivo()
 
@@ -141,5 +173,11 @@ func main() {
 	exibirEstatisticas()
 
 	sitesDown := obterSitesForaDoAr()
-	fmt.Println(formatarMensagemAlerta(sitesDown))
+	if len(sitesDown) > 0 {
+		message := formatarMensagemAlerta(sitesDown)
+		err := enviarAlertaTelegram(message)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
